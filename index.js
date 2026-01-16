@@ -96,6 +96,42 @@ async function run() {
       res.send(result)
     })
 
+    // all loans for search sort pagination
+    app.get('/explore-loans', async (req, res) => {
+      const {
+        category,
+        limit = 0,
+        skip = 0,
+        sort = 'interestRate',
+        order = 'asc',
+        search = ''
+      } = req.query;
+
+      const filter = {};
+      if (category) {
+        filter.category = category;
+      }
+      if (search) {
+        filter.title = { $regex: search, $options: 'i' };
+      }
+
+      const sortOption = {};
+      sortOption[sort] = order === "asc" ? 1 : -1;
+
+      const cursor = loansCollection
+        .find(filter)
+        .sort(sortOption)
+        .limit(Number(limit))
+        .skip(Number(skip));
+
+      const loans = await cursor.toArray();
+
+      // If you want count of filtered docs, use same filter
+      const count = await loansCollection.countDocuments(filter);
+
+      res.send({ loans, total: count });
+    });
+
     // get a loan details
     app.get('/loan/:id', async (req, res) => {
       const id = req.params.id;
