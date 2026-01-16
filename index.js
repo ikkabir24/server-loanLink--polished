@@ -97,7 +97,7 @@ async function run() {
     })
 
     // get a loan details
-    app.get('/loan/:id', verifyJWT, async (req, res) => {
+    app.get('/loan/:id', async (req, res) => {
       const id = req.params.id;
       const result = await loansCollection.findOne({ _id: new ObjectId(id) });
       res.send(result)
@@ -217,10 +217,26 @@ async function run() {
 
     // get a users role
     app.get('/user/role', verifyJWT, async (req, res) => {
-      const email = req.tokenEmail;
-      const result = await usersCollection.findOne({ email });
-      res.send({ role: result?.role })
-    })
+      try {
+        const queryEmail = req.query.email;
+        const tokenEmail = req.tokenEmail;
+
+        // email spoofing protection
+        if (!queryEmail || queryEmail !== tokenEmail) {
+          return res.status(403).send({ role: null });
+        }
+
+        const user = await usersCollection.findOne({ email: tokenEmail });
+
+        if (!user) {
+          return res.status(404).send({ role: null });
+        }
+
+        res.send({ role: user.role });
+      } catch (error) {
+        res.status(500).send({ message: 'Failed to fetch user role' });
+      }
+    });
 
     // update user role
     app.patch('/user/:id', verifyJWT, verifyADMIN, async (req, res) => {
@@ -240,7 +256,7 @@ async function run() {
       const result = await loansCollection
         .find(query)
         .sort({ updatedAt: -1 })
-        .limit(6)
+        .limit(8)
         .toArray();
       res.send(result);
     })
